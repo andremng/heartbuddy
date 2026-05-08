@@ -1,0 +1,6 @@
+@HeartBuddyAPI_HostAddress = http://localhost:5259
+
+GET {{HeartBuddyAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

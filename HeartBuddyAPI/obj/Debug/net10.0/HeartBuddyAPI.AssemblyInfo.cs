@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HeartBuddyAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b311a36f3cb6155b20bcfa4a89f18a0bd533e327")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bfeeba9cde5b1f7550d67fb9597eedde37579fbc")]
 [assembly: System.Reflection.AssemblyProductAttribute("HeartBuddyAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HeartBuddyAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

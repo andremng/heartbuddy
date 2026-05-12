@@ -4,7 +4,7 @@ namespace HeartBuddyAPI.Models
     {
         public int DeviceID { get; set; }
         public string DeviceName { get; set; } = string.Empty;
-        public string Location { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
+        public DateTime RegistrationDate { get; set; }
+        public int UserID { get; set; }
     }
 }

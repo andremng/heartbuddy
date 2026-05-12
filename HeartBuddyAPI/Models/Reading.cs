@@ -4,9 +4,9 @@ namespace HeartBuddyAPI.Models
     {
         public int ReadingID { get; set; }
         public int DeviceID { get; set; }
-        public int HeartRate { get; set; }
-        public float SpO2 { get; set; }
-        public int Movement { get; set; }
+        public double HeartRate { get; set; }
         public DateTime Timestamp { get; set; }
+        public double? SpO2 { get; set; }
+        public int? Movement { get; set; }
     }
 }

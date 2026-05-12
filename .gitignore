@@ -1,0 +1,38 @@
+# Ignore build outputs
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+
+# Visual Studio and Rider files
+.vs/
+.vscode/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+packages/
+
+# Logs
+*.log
+
+# Test results
+TestResults/
+
+# Other generated files
+*.cache
+
+# ASP.NET temporary files
+*.dbmdl
+
+# Rider
+.idea/
+*.sln.iml

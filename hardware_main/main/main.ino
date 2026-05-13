@@ -4,6 +4,9 @@
 #include "heartRate.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <time.h>
 
 // --- OLED CONFIGURATION ---
 #define SCREEN_WIDTH  128
@@ -57,8 +60,8 @@ void setup() {
   showStartupMessage();
 
   initSensor();
-
   showReadyMessage();
+  initNetwork();
 }
 
 void loop() {
@@ -72,4 +75,6 @@ void loop() {
   updateBPM(irValue);
   updateSpo2IfNeeded();
   updateOutputIfNeeded(irValue);
+  sendReadingIfNeeded();
+
 }

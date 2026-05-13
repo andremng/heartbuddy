@@ -6,55 +6,37 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <time.h>  // Standard C library for time functions, included with ESP32 core.
+#include <time.h>
 
 // -----------------------------------------------------------------------------
 // CONFIGURATION
 // -----------------------------------------------------------------------------
 
-const char* WIFI_SSID     = "YOUR_NETWORK_NAME";
-const char* WIFI_PASSWORD = "YOUR_NETWORK_PASSWORD";
-const char* API_URL       = "http://ASK_BACKEND_TEAM/api/readings";
-const char* DEVICE_ID     = "esp32-001";
+const char* WIFI_SSID     = "Xiaomi 15";
+const char* WIFI_PASSWORD = "Kalo2005";
+const char* API_URL       = "http://10.59.42.211:5259/api/Readings";
 
 const int SEND_INTERVAL   = 10000;
 
-// NTP server to request the current time from.
-// pool.ntp.org is a public server that is reliable and free to use.
-// The second and third parameters are UTC offset in seconds and
-// daylight saving offset in seconds.
-// For Netherlands (CET = UTC+1): gmtOffset = 3600, daylightOffset = 3600.
-// Adjust these values if the device will be used in a different timezone.
-const char* NTP_SERVER       = "pool.ntp.org";
-const long  GMT_OFFSET_SEC   = 3600;   // UTC+1 for Central European Time
-const int   DAYLIGHT_OFFSET  = 3600;   // +1 hour for Central European Summer Time
+const char* NTP_SERVER      = "pool.ntp.org";
+const long  GMT_OFFSET_SEC  = 3600;
+const int   DAYLIGHT_OFFSET = 3600;
 
 unsigned long lastSendTime = 0;
-bool wifiConnected  = false;
-bool timeSync       = false; // Tracks whether NTP sync was successful.
+bool wifiConnected = false;
+bool timeSync      = false;
 
 // -----------------------------------------------------------------------------
 // getFormattedTimestamp()
-// Reads the current time from the ESP32 internal clock (synchronised via NTP)
-// and returns it as an ISO 8601 string: "YYYY-MM-DDTHH:MM:SS"
-// This format is the international standard for timestamps and is natively
-// understood by C#, SQL Server, and JavaScript.
-// Returns an empty string if the clock has not been synchronised yet.
+// Returns current local time as ISO 8601 string: "YYYY-MM-DDTHH:MM:SS"
+// Returns empty string if clock is not synchronised.
 // -----------------------------------------------------------------------------
 String getFormattedTimestamp() {
-  struct tm timeInfo; // tm is a C struct that holds broken-down time components.
-
-  // getLocalTime() fills the timeInfo struct with the current local time.
-  // The second parameter is the maximum milliseconds to wait for a valid time.
-  // Returns false if the clock is not synchronised.
+  struct tm timeInfo;
   if (!getLocalTime(&timeInfo)) {
     Serial.println("Time: clock not synchronised yet.");
     return "";
   }
-
-  // strftime formats the time struct into a string using format codes.
-  // %Y = 4-digit year, %m = month, %d = day,
-  // %H = hour (24h), %M = minute, %S = second.
   char buffer[25];
   strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeInfo);
   return String(buffer);
@@ -62,8 +44,7 @@ String getFormattedTimestamp() {
 
 // -----------------------------------------------------------------------------
 // initNetwork()
-// Called once from setup() in main.ino.
-// Connects to WiFi, then synchronises the clock via NTP.
+// Called once from setup(). Connects to WiFi then synchronises clock via NTP.
 // -----------------------------------------------------------------------------
 void initNetwork() {
   Serial.print("Connecting to WiFi: ");
@@ -82,7 +63,6 @@ void initNetwork() {
     delay(500);
     Serial.print(".");
     attempts++;
-
     if (attempts > 30) {
       Serial.println("\nWiFi connection failed. Running in offline mode.");
       display.clearDisplay();
@@ -98,14 +78,14 @@ void initNetwork() {
 
   wifiConnected = true;
   Serial.println();
-  Serial.print("WiFi connected. IP: ");
+  Serial.print("WiFi connected. IP address of this ESP32: ");
   Serial.println(WiFi.localIP());
 
-  // --- NTP SYNCHRONISATION ---
-  // configTime sends a request to the NTP server and sets the ESP32 internal
-  // clock. This only needs to happen once; the clock runs autonomously after.
-  Serial.println("Synchronising time via NTP...");
+  // Print the API URL we will be posting to, useful for debugging.
+  Serial.print("Target API URL: ");
+  Serial.println(API_URL);
 
+  Serial.println("Synchronising time via NTP...");
   display.clearDisplay();
   display.setCursor(0, 8);
   display.print("Syncing time...");
@@ -113,17 +93,14 @@ void initNetwork() {
 
   configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET, NTP_SERVER);
 
-  // Wait up to 10 seconds for the time to synchronise before continuing.
   struct tm timeInfo;
   int syncAttempts = 0;
   while (!getLocalTime(&timeInfo)) {
     delay(500);
     Serial.print(".");
     syncAttempts++;
-
     if (syncAttempts > 20) {
-      Serial.println("\nNTP sync failed. Timestamps will be omitted.");
-      // timeSync remains false; buildPayload() will handle the missing timestamp.
+      Serial.println("\nNTP sync failed. Timestamps will be null.");
       display.clearDisplay();
       display.setCursor(0, 4);
       display.print("Time sync failed.");
@@ -137,10 +114,7 @@ void initNetwork() {
 
   timeSync = true;
   Serial.println();
-  Serial.println("Time synchronised successfully.");
-
-  // Print the synchronised time to Serial for confirmation.
-  Serial.print("Current time: ");
+  Serial.print("Time synchronised. Current time: ");
   Serial.println(getFormattedTimestamp());
 
   display.clearDisplay();
@@ -155,25 +129,32 @@ void initNetwork() {
 // -----------------------------------------------------------------------------
 // buildPayload()
 // Constructs the JSON string sent to the API.
-// Includes the timestamp only if NTP synchronisation was successful.
-// If the timestamp field is absent, the backend can fall back to server time.
+//
+// FIX 1 — SpO2 handling:
+// spo2Valid is no longer a gate for sending. Instead, when SpO2 is not valid,
+// the field is sent as null so the database receives the record regardless.
+// Confirm with the backend team that the spo2 column is nullable in SQL Server.
 // -----------------------------------------------------------------------------
 String buildPayload() {
   String payload = "{";
-  payload += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
-  payload += "\"bpm\":"        + String(beatAvg)    + ",";
-  payload += "\"spo2\":"       + String(spo2Value)  + ",";
-  payload += "\"movementDetected\":false,";
 
-  // Only include the timestamp field if the clock is synchronised.
-  // If NTP failed, the field is omitted entirely and the API server
-  // should fall back to generating the timestamp on its end.
-  if (timeSync) {
-    String ts = getFormattedTimestamp();
-    payload += "\"timestamp\":\"" + ts + "\"";
+  payload += "\"deviceID\":1,";
+  payload += "\"heartRate\":" + String(beatAvg) + ",";
+
+  // Send the numeric SpO2 value if valid, otherwise send null.
+  // null is the correct JSON representation of a missing value,
+  // and SQL Server will store it as NULL in a nullable integer column.
+  if (spo2Valid) {
+    payload += "\"spo2\":" + String(spo2Value) + ",";
   } else {
-    // Send a null value so the field is present but explicitly empty.
-    // This tells the backend that the device is online but has no clock.
+    payload += "\"spo2\":null,";
+  }
+
+  payload += "\"movement\":0,";
+
+  if (timeSync) {
+    payload += "\"timestamp\":\"" + getFormattedTimestamp() + "\"";
+  } else {
     payload += "\"timestamp\":null";
   }
 
@@ -184,26 +165,56 @@ String buildPayload() {
 // -----------------------------------------------------------------------------
 // sendReadingIfNeeded()
 // Called every loop() iteration from main.ino.
-// Identical logic to the previous version, with timestamp now included
-// in the payload via buildPayload().
+//
+// FIX 1 — SpO2 no longer blocks the send.
+//   The only hard requirement before sending is bufferFilled (valid BPM).
+//   SpO2 is handled as nullable inside buildPayload().
+//
+// FIX 2 — Connection refused diagnosis:
+//   Added a WiFi status check before every send attempt. If the connection
+//   has dropped (common with mobile hotspots), it logs a clear message
+//   instead of attempting an HTTP request that will always fail.
+//   Also added explicit logging of the full payload and target URL so you
+//   can verify both in the Serial Monitor during testing.
 // -----------------------------------------------------------------------------
 void sendReadingIfNeeded() {
   if (!wifiConnected) return;
   if (millis() - lastSendTime < SEND_INTERVAL) return;
 
-  if (!bufferFilled || !spo2Valid) {
-    Serial.println("Network: skipping send — readings not yet valid.");
+  // FIX 2: Check that WiFi is still connected before attempting any HTTP call.
+  // Mobile hotspot IPs can change or the connection can drop silently.
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Network: WiFi disconnected. Skipping send.");
+    Serial.println("If this persists, restart the device or check hotspot IP.");
+    lastSendTime = millis();
+    return;
+  }
+
+  // FIX 1: Only require BPM to be valid. SpO2 is sent as null if unavailable.
+  if (!bufferFilled) {
+    Serial.println("Network: skipping send — BPM not yet calibrated.");
     lastSendTime = millis();
     return;
   }
 
   String payload = buildPayload();
-  Serial.print("Sending payload: ");
+
+  // Print both the target URL and the payload before sending.
+  // This lets you verify in the Serial Monitor that both are correct
+  // before suspecting a network problem.
+  Serial.println("--- Attempting to send ---");
+  Serial.print("URL:     ");
+  Serial.println(API_URL);
+  Serial.print("Payload: ");
   Serial.println(payload);
 
   HTTPClient http;
   http.begin(API_URL);
   http.addHeader("Content-Type", "application/json");
+
+  // Set a connection timeout of 5 seconds.
+  // Without this, a refused connection can block the loop for up to 30 seconds.
+  http.setTimeout(15000);
 
   int responseCode = http.POST(payload);
 
@@ -212,12 +223,28 @@ void sendReadingIfNeeded() {
     Serial.println(responseCode);
     if (responseCode == 200 || responseCode == 201) {
       Serial.println("Reading sent successfully.");
+    } else if (responseCode == 400) {
+      Serial.println("Bad request (400). Check field names and data types in buildPayload().");
+    } else if (responseCode == 404) {
+      Serial.println("Not found (404). Check the API URL path.");
+    } else if (responseCode == 500) {
+      Serial.println("Server error (500). Ask the backend team to check their logs.");
     } else {
-      Serial.println("Unexpected response. Check API URL and payload field names.");
+      Serial.print("Unexpected response code: ");
+      Serial.println(responseCode);
     }
   } else {
+    // Negative codes are ESP32 internal errors, not HTTP responses.
     Serial.print("HTTP request failed. Error: ");
     Serial.println(http.errorToString(responseCode));
+
+    // Specific guidance for the most common failure mode in this setup.
+    if (responseCode == -1) {
+      Serial.println("Connection refused. Possible causes:");
+      Serial.println("  1. API server is not running on the backend machine.");
+      Serial.println("  2. IP address or port has changed — confirm with backend team.");
+      Serial.println("  3. Firewall is blocking port 5259 on the server machine.");
+    }
   }
 
   http.end();

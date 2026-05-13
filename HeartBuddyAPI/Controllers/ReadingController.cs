@@ -19,7 +19,6 @@ namespace HeartBuddyAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> PostReading([FromBody] Reading reading)
         {
-            reading.Timestamp = DateTime.Now;
             _context.Readings.Add(reading);
             await _context.SaveChangesAsync();
             return Ok(reading);

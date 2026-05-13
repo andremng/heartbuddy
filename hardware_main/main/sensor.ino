@@ -1,3 +1,7 @@
+// This file contains the functions driving the MAX30102 sensor
+//-------------------------------------------------------------
+
+// Initializing OLED display, showing startup messages on screen
 void initDisplay() {
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
     Serial.println("OLED not found. Check wiring and I2C address.");
@@ -27,6 +31,7 @@ void showReadyMessage() {
   display.display();
 }
 
+// Initializing Sensor, printing error messagges if occured
 void initSensor() {
   Serial.println("Initializing MAX30102...");
 
@@ -61,10 +66,12 @@ void initSensor() {
   );
 }
 
+// Return ir Value if finger is deteced on sensor
 bool isFingerDetected(long irValue) {
   return irValue >= FINGER_THRESHOLD;
 }
 
+// Reset the values if finger is removed
 void resetSensorState() {
   beatsPerMinute = 0;
   beatAvg        = 0;
@@ -79,6 +86,7 @@ void resetSensorState() {
   }
 }
 
+// Printing messages if finger is not deteced
 void handleNoFinger(long irValue) {
   resetSensorState();
 
@@ -92,6 +100,7 @@ void handleNoFinger(long irValue) {
   }
 }
 
+// Calculates BPM value based on peak detection, updates buffer with 8 readings, does the average
 void updateBPM(long irValue) {
   if (checkForBeat(irValue)) {
     long delta = millis() - lastBeat;
@@ -122,6 +131,7 @@ void updateBPM(long irValue) {
   }
 }
 
+// Calculates SP02 values and updates buffers
 void updateSpo2IfNeeded() {
   if (millis() - lastSpo2Time < SPO2_INTERVAL) {
     return;
@@ -155,6 +165,7 @@ void updateSpo2IfNeeded() {
   lastSpo2Time = millis();
 }
 
+// Print data on display if they are changed
 void updateOutputIfNeeded(long irValue) {
   if (millis() - lastDisplayTime < DISPLAY_INTERVAL) {
     return;
@@ -166,6 +177,7 @@ void updateOutputIfNeeded(long irValue) {
   lastDisplayTime = millis();
 }
 
+// Function that prints BPM and SPO2 values in serial monitor
 void printSensorData(long irValue) {
   Serial.print("IR: ");
   Serial.print(irValue);
@@ -194,6 +206,7 @@ void printSensorData(long irValue) {
   Serial.println();
 }
 
+// Function that prints BPM and SPO2 vaules on OLED display
 void updateDisplay(long irValue) {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);

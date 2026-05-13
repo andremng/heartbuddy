@@ -1,3 +1,6 @@
+// Main file running setup and loop functions and the overall logic of the system
+//-------------------------------------------------------------------------------
+
 #include <Wire.h>
 #include "MAX30105.h"
 #include "spo2_algorithm.h"

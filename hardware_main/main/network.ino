@@ -174,8 +174,6 @@ String buildPayload() {
 //   Added a WiFi status check before every send attempt. If the connection
 //   has dropped (common with mobile hotspots), it logs a clear message
 //   instead of attempting an HTTP request that will always fail.
-//   Also added explicit logging of the full payload and target URL so you
-//   can verify both in the Serial Monitor during testing.
 // -----------------------------------------------------------------------------
 void sendReadingIfNeeded() {
   if (!wifiConnected) return;
